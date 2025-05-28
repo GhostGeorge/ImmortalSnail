@@ -3,7 +3,6 @@
     <output-path>$USER_HOME$/Desktop/Paper server/plugins</output-path>
     <root id="archive" name="immortalsnail_maven.jar">
       <element id="module-output" name="immortalsnail_maven" />
-      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/magmaguy/FreeMinecraftModels/2.0.0/FreeMinecraftModels-2.0.0.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

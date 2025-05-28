@@ -9,6 +9,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -151,6 +153,7 @@ public final class ImmortalSnail_Maven extends JavaPlugin {
 
     public void spawnSnailsForPlayers() {
         snailActive = true;
+        String modelID = "snail";
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             // Calculate spawn location behind the player
@@ -164,7 +167,9 @@ public final class ImmortalSnail_Maven extends JavaPlugin {
             host.setSilent(true);
 
             // Create DynamicEntity with the snail model
+            //DynamicEntity snail = DynamicEntity.create(modelID, (LivingEntity) spawnLocation.getWorld().spawnEntity(spawnLocation, EntityType.PIG));
             DynamicEntity snail = DynamicEntity.create("snail", host);
+
             snail.setName(player.getName() + "'s Snail");
             snail.setNameVisible(true);
 

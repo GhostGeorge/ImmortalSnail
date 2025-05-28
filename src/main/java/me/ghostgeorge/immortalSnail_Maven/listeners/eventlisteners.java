@@ -90,6 +90,7 @@ public class eventlisteners implements Listener {
             host.setSilent(true);
 
             // Create new dynamic entity with snail model
+            String modelID = "snail";
             DynamicEntity newSnail = DynamicEntity.create("snail", host);
             newSnail.setName(player.getName() + "'s Snail");
             newSnail.setNameVisible(true);
