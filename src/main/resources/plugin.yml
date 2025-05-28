@@ -1,0 +1,12 @@
+name: ImmortalSnail_Maven
+version: '1.0'
+main: me.ghostgeorge.immortalSnail_Maven.ImmortalSnail_Maven
+api-version: '1.21'
+commands:
+  snail:
+    description: Controls the immortal snails
+    usage: /<command> <start|reset|pause>
+permissions:
+  snailv2.admin:
+    description: Allows access to the snail start/reset/pause commands
+    default: op
