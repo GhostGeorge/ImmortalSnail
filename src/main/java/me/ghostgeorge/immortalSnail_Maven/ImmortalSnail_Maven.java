@@ -3,14 +3,13 @@ package me.ghostgeorge.immortalSnail_Maven;
 import com.magmaguy.freeminecraftmodels.customentity.DynamicEntity;
 import me.ghostgeorge.immortalSnail_Maven.commands.snailcommands;
 import me.ghostgeorge.immortalSnail_Maven.listeners.eventlisteners;
+import me.ghostgeorge.immortalSnail_Maven.nms.SimpleSnailFollower;
 import me.ghostgeorge.immortalSnail_Maven.nms.SnailNMS;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -165,24 +164,38 @@ public final class ImmortalSnail_Maven extends JavaPlugin {
             Pig host = player.getWorld().spawn(spawnLocation, Pig.class);
             host.setInvisible(true);
             host.setSilent(true);
+            host.setAI(false); // Disable default AI since we're controlling it
+            host.setRemoveWhenFarAway(false); // Prevent despawning
+            host.setGravity(true); // Keep gravity enabled
+
+            getLogger().info("DEBUG: Spawned pig for " + player.getName() + " at " + spawnLocation);
 
             // Create DynamicEntity with the snail model
-            //DynamicEntity snail = DynamicEntity.create(modelID, (LivingEntity) spawnLocation.getWorld().spawnEntity(spawnLocation, EntityType.PIG));
             DynamicEntity snail = DynamicEntity.create("snail", host);
-
             snail.setName(player.getName() + "'s Snail");
             snail.setNameVisible(true);
 
             // Store the pairing
             playerSnailMap.put(player, snail);
 
-            // Apply NMS pathfinding to the host pig
-            boolean success = SnailNMS.addPathfindingToEntity(host, player);
+            getLogger().info("DEBUG: Created DynamicEntity for " + player.getName());
 
-            if (!success) {
-                getLogger().warning("Failed to apply pathfinding for " + player.getName() + "'s snail");
-                // Fallback to simple following logic
-                startBackupFollowingLogic(host, player);
+            // Try NMS pathfinding first
+            boolean nmsSuccess = false;
+            try {
+                nmsSuccess = SnailNMS.addPathfindingToEntity(host, player);
+                if (nmsSuccess) {
+                    getLogger().info("DEBUG: Successfully applied NMS pathfinding for " + player.getName());
+                }
+            } catch (Exception e) {
+                getLogger().warning("NMS pathfinding failed: " + e.getMessage());
+                nmsSuccess = false;
+            }
+
+            // If NMS fails, use simple velocity-based following
+            if (!nmsSuccess) {
+                getLogger().info("DEBUG: Using simple follower for " + player.getName());
+                SimpleSnailFollower.startFollowing(host, player, this);
             }
 
             player.sendMessage(ChatColor.GREEN + "Your Immortal Snail has been summoned.");

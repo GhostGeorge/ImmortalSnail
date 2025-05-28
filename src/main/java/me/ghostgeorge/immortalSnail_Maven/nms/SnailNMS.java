@@ -3,6 +3,7 @@ package me.ghostgeorge.immortalSnail_Maven.nms;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.animal.Pig;
+import net.minecraft.world.level.pathfinder.Path;
 import org.bukkit.craftbukkit.entity.CraftEntity;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
@@ -11,7 +12,7 @@ import org.bukkit.entity.Player;
 import java.util.EnumSet;
 
 /**
- * Handles NMS pathfinding for the immortal snail
+ * Handles NMS pathfinding for the immortal snail - Updated for 1.21.4
  */
 public class SnailNMS {
 
@@ -23,7 +24,8 @@ public class SnailNMS {
      */
     public static boolean addPathfindingToEntity(Entity hostEntity, Player target) {
         try {
-            if (!(hostEntity instanceof org.bukkit.entity.Pig)) {
+            if (!(hostEntity instanceof org.bukkit.entity.Pig bukkitPig)) {
+                System.out.println("DEBUG: Host entity is not a pig");
                 return false;
             }
 
@@ -31,24 +33,29 @@ public class SnailNMS {
             net.minecraft.world.entity.Entity nmsEntity = ((CraftEntity) hostEntity).getHandle();
 
             if (!(nmsEntity instanceof Pig nmsPig)) {
+                System.out.println("DEBUG: NMS entity is not a pig");
                 return false;
             }
+
+            System.out.println("DEBUG: Successfully got NMS pig for " + target.getName());
 
             // Clear existing AI goals
             nmsPig.goalSelector.removeAllGoals(goal -> true);
             nmsPig.targetSelector.removeAllGoals(goal -> true);
 
-            // Add our custom pathfinding goal
-            nmsPig.goalSelector.addGoal(0, new SnailFollowGoal(
+            // Add our custom pathfinding goal with higher priority
+            nmsPig.goalSelector.addGoal(1, new SnailFollowGoal(
                     nmsPig,
                     ((CraftPlayer) target).getHandle(),
-                    0.05D,  // Very slow movement speed (snail)
-                    1.5F,   // Stop distance (blocks)
-                    8.0F    // Start following distance (blocks)
+                    0.4D,   // Movement speed
+                    2.0F,   // Stop distance (blocks)
+                    30.0F   // Start following distance (blocks)
             ));
 
+            System.out.println("DEBUG: Added pathfinding goal for " + target.getName());
             return true;
         } catch (Exception e) {
+            System.out.println("DEBUG: Exception in addPathfindingToEntity: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -67,6 +74,7 @@ public class SnailNMS {
 
         private final double stopDistanceSq;
         private final double startDistanceSq;
+        private int timeToRecalcPath = 0;
 
         public SnailFollowGoal(Pig snail, net.minecraft.world.entity.player.Player owner,
                                double speed, float stopDistance, float startDistance) {
@@ -80,64 +88,123 @@ public class SnailNMS {
             this.stopDistanceSq = stopDistance * stopDistance;
             this.startDistanceSq = startDistance * startDistance;
 
-            // Set the goal flags
+            // Set the goal flags - updated for 1.21.4
             this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
         }
 
         @Override
         public boolean canUse() {
-            // Check if the owner is valid and the snail should start following
-            return this.owner != null &&
-                    !this.owner.isSpectator() &&
-                    !this.owner.isDeadOrDying() &&
-                    this.snail.distanceToSqr(this.owner) >= this.stopDistanceSq;
+            // Check if the owner is valid and far enough to start following
+            if (this.owner == null || this.owner.isSpectator() || this.owner.isDeadOrDying()) {
+                return false;
+            }
+
+            // Only start if we're farther than stop distance
+            double distanceSq = this.snail.distanceToSqr(this.owner);
+            boolean shouldUse = distanceSq > this.stopDistanceSq;
+
+            // Less verbose logging
+            if (this.timeToRecalcPath <= 0) {
+                System.out.println("DEBUG: canUse() - Distance: " + String.format("%.2f", Math.sqrt(distanceSq)) +
+                        ", Should use: " + shouldUse);
+            }
+            return shouldUse;
         }
 
         @Override
         public boolean canContinueToUse() {
-            // Keep following as long as the owner is valid and not too close
-            return !this.navigation.isDone() &&
-                    this.owner != null &&
-                    !this.owner.isSpectator() &&
-                    !this.owner.isDeadOrDying() &&
-                    this.snail.distanceToSqr(this.owner) >= this.stopDistanceSq;
+            // Continue as long as owner is valid and we're not too close
+            if (this.owner == null || this.owner.isSpectator() || this.owner.isDeadOrDying()) {
+                return false;
+            }
+
+            double distanceSq = this.snail.distanceToSqr(this.owner);
+            return distanceSq > this.stopDistanceSq;
         }
 
         @Override
         public void start() {
-            // Reset follow timer
-            this.navigation.moveTo(this.owner, this.speed);
+            System.out.println("DEBUG: SnailFollowGoal started!");
+            this.timeToRecalcPath = 0;
+            boolean success = this.navigation.moveTo(this.owner, this.speed);
+            System.out.println("DEBUG: Initial moveTo result: " + success);
         }
 
         @Override
         public void stop() {
-            // Stop following
+            System.out.println("DEBUG: SnailFollowGoal stopped");
             this.navigation.stop();
         }
 
         @Override
         public void tick() {
+            // Calculate distance once for this tick
+            double distanceSq = this.snail.distanceToSqr(this.owner);
+            double distance = Math.sqrt(distanceSq);
+
             // Make the snail look at the player
             this.snail.getLookControl().setLookAt(
                     this.owner,
-                    10.0F, // Horizontal look angle
-                    this.snail.getMaxHeadXRot() // Vertical look angle
+                    10.0F,
+                    this.snail.getMaxHeadXRot()
             );
 
-            // Update navigation if needed
-            if (this.snail.distanceToSqr(this.owner) >= this.startDistanceSq) {
-                // If we're far from the player, keep navigating
-                if (!this.navigation.isInProgress()) {
-                    this.navigation.moveTo(this.owner, this.speed);
+            // Recalculate path periodically
+            if (--this.timeToRecalcPath <= 0) {
+                this.timeToRecalcPath = 20; // Reset the timer - THIS WAS MISSING!
+
+                System.out.println("DEBUG: Tick - Distance: " + String.format("%.2f", distance) +
+                        ", Navigation active: " + this.navigation.isInProgress());
+
+                // Check if we can reach the target using createPath method
+                Path path = this.navigation.createPath(this.owner.blockPosition(), 0);
+                boolean canReach = path != null && path.canReach();
+
+                System.out.println("DEBUG: Can reach target: " + canReach);
+
+                // Teleport if too far (failsafe)
+                if (distance > 50) {
+                    System.out.println("DEBUG: Teleporting snail - too far from player");
+                    double angle = Math.random() * 2 * Math.PI;
+                    double offsetX = Math.cos(angle) * 10;
+                    double offsetZ = Math.sin(angle) * 10;
+
+                    this.snail.teleportTo(
+                            this.owner.getX() + offsetX,
+                            this.owner.getY(),
+                            this.owner.getZ() + offsetZ
+                    );
+                    return;
                 }
-            } else {
-                // If we're close but not too close, just look at the player
-                this.navigation.stop();
-                this.snail.getLookControl().setLookAt(
-                        this.owner,
-                        10.0F,
-                        this.snail.getMaxHeadXRot()
-                );
+
+                // Only pathfind if we can reach the target and we're in reasonable range
+                if (canReach && distance > this.stopDistance && distance < this.startDistance) {
+                    this.navigation.moveTo(
+                            this.owner.getX(),
+                            this.owner.getY(),
+                            this.owner.getZ(),
+                            this.speed
+                    );
+                } else if (!canReach) {
+                    System.out.println("DEBUG: Cannot reach target, stopping navigation");
+                    this.navigation.stop();
+                }
+            }
+
+            // Restart navigation if it stopped but we're still far
+            if (!this.navigation.isInProgress() && distance > this.stopDistance && distance < this.startDistance) {
+                if (this.timeToRecalcPath % 5 == 0) { // Don't spam this
+                    Path path = this.navigation.createPath(this.owner.blockPosition(), 0);
+                    if (path != null && path.canReach()) {
+                        this.navigation.moveTo(
+                                this.owner.getX(),
+                                this.owner.getY(),
+                                this.owner.getZ(),
+                                this.speed
+                        );
+                        System.out.println("DEBUG: Restarting navigation (distance: " + String.format("%.2f", distance) + ")");
+                    }
+                }
             }
         }
     }
