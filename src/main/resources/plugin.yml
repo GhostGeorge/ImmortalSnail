@@ -2,6 +2,8 @@ name: ImmortalSnail_Maven
 version: '1.0'
 main: me.ghostgeorge.immortalSnail_Maven.ImmortalSnail_Maven
 api-version: '1.21'
+depend:
+  - FreeMinecraftModels
 commands:
   snail:
     description: Controls the immortal snails

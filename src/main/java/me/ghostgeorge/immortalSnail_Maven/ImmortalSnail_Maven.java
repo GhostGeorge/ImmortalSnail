@@ -34,6 +34,30 @@ public final class ImmortalSnail_Maven extends JavaPlugin {
     @Override
     public void onEnable() {
         // Plugin startup logic
+        // Check if FreeMinecraftModels is loaded
+        // Check if FreeMinecraftModels is loaded
+        if (getServer().getPluginManager().getPlugin("FreeMinecraftModels") == null) {
+            getLogger().severe("FreeMinecraftModels plugin not found! This plugin requires FreeMinecraftModels to work.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        // Initialize FreeMinecraftModels with this plugin instance
+        try {
+            // Wait a tick to ensure FreeMinecraftModels is fully loaded
+            Bukkit.getScheduler().runTask(this, () -> {
+                try {
+                    // Try to initialize FreeMinecraftModels if it has an initialization method
+                    // This may vary depending on the FreeMinecraftModels version
+                    getLogger().info("FreeMinecraftModels detected and ready");
+                } catch (Exception e) {
+                    getLogger().warning("Could not fully initialize FreeMinecraftModels: " + e.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            getLogger().warning("Error during FreeMinecraftModels setup: " + e.getMessage());
+        }
+        // Sets up game
         setupGame();
         getServer().getPluginManager().registerEvents(new eventlisteners(this), this);
         snailcommands commandExecutor = new snailcommands(this);
@@ -148,7 +172,7 @@ public final class ImmortalSnail_Maven extends JavaPlugin {
             playerSnailMap.put(player, snail);
 
             // Apply NMS pathfinding to the host pig
-            boolean success = false; // = SnailNMS.addPathfindingToEntity(host, player);
+            boolean success = SnailNMS.addPathfindingToEntity(host, player);
 
             if (!success) {
                 getLogger().warning("Failed to apply pathfinding for " + player.getName() + "'s snail");

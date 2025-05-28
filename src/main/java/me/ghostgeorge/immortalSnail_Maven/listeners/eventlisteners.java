@@ -98,7 +98,7 @@ public class eventlisteners implements Listener {
             plugin.getPlayerSnailMap().put(player, newSnail);
 
             // Apply NMS pathfinding
-            boolean success = false; //SnailNMS.addPathfindingToEntity(host, player);
+            boolean success = SnailNMS.addPathfindingToEntity(host, player);
 
             if (!success) {
                 // Fall back to basic following logic
