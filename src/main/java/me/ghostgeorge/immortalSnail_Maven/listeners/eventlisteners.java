@@ -11,9 +11,10 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPortalEvent;
 
 import java.util.Map;
 
@@ -66,31 +67,47 @@ public class eventlisteners implements Listener {
         }
     }
 
-    // Allows snails to travel across dimensions
+    // Stops snails accidently getting sent to another dimension
     @EventHandler
-    public void onWorldChange(PlayerChangedWorldEvent event) {
-        Player player = event.getPlayer();
-        if (!plugin.snailActive) return;
+    public void onEntityPortal(EntityPortalEvent event) {
+        Entity entity = event.getEntity();
+        for (DynamicEntity snail : plugin.getPlayerSnailMap().values()) {
+            if (snail.getLivingEntity().getUniqueId().equals(event.getEntity().getUniqueId())) {
+                event.setCancelled(true);        // make snail immortal
+                return;
+            }
+        }
+    }
 
-        /* remove old snail */
+    // Handles dimension changes
+    @EventHandler
+    public void onPlayerPortal(PlayerPortalEvent event) {
+        Player player = event.getPlayer();
+
+        if (!plugin.snailActive) return;
+        if (!plugin.getPlayerSnailMap().containsKey(player)) return;
+
+        // Remove old snail immediately (optional, to prevent duplicates)
         DynamicEntity old = plugin.getPlayerSnailMap().remove(player);
         if (old != null) old.remove();
 
-        /* respawn after delay */
+        // Save the destination portal location where the snail should spawn later
+        Location portalSpawnLocation = event.getTo().clone();
+
+        // Schedule snail respawn at portal location after 15 seconds (15 * 20 ticks)
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) return;
 
-            Location spawnLoc = player.getLocation().clone()
-                    .add(player.getLocation().getDirection().normalize().multiply(-15));
-            spawnLoc.setY(player.getWorld().getHighestBlockYAt(spawnLoc) + 1);
+            // Adjust spawn location just above the highest block (like your original code)
+            Location spawnLoc = portalSpawnLocation.clone();
+            spawnLoc.setY(spawnLoc.getWorld().getHighestBlockYAt(spawnLoc) + 1);
 
-            // Spawn new host pig
-            Pig host = player.getWorld().spawn(spawnLoc, Pig.class);
+            // Spawn new host pig at the portal
+            Pig host = spawnLoc.getWorld().spawn(spawnLoc, Pig.class);
             host.setInvisible(true);
             host.setSilent(true);
 
             // Create new dynamic entity with snail model
-            String modelID = "snail";
             DynamicEntity newSnail = DynamicEntity.create("snail", host);
             newSnail.setName(player.getName() + "'s Snail");
             newSnail.setNameVisible(true);
@@ -98,18 +115,17 @@ public class eventlisteners implements Listener {
             // Save to map
             plugin.getPlayerSnailMap().put(player, newSnail);
 
-            // Apply NMS pathfinding
+            // Apply NMS pathfinding or fallback
             boolean success = SnailNMS.addPathfindingToEntity(host, player);
-
             if (!success) {
-                // Fall back to basic following logic
                 plugin.startFollowingSnail(newSnail.getLivingEntity(), player);
             }
 
-            player.sendMessage(ChatColor.GREEN + "Your Immortal Snail followed you through dimensions!");
+            player.sendMessage(ChatColor.GREEN + "Your Immortal Snail followed you through the portal!");
 
-        }, 160L); // 8 s
+        }, 15 * 20L); // 15 seconds delay
     }
+
 
     @EventHandler
     public void onEntityTarget(EntityTargetLivingEntityEvent event) {

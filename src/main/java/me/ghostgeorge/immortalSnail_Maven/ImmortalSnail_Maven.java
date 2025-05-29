@@ -23,6 +23,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 public final class ImmortalSnail_Maven extends JavaPlugin {
+    /*
+    Known bugs
+    - snail does not like to fall - override current navigation
+    -  /snail pause does not work - implement a teleport freeze on players and snails
+    - snail does not have a visible name - make some kind of colored marker?
+    - snail can go invisible when teleporting - make a wait period after teleporting if increasing the teleport distance didnt work
+    - snail can't swim - make snail float
+     */
+
     // Determines whether the snail game is active
     public boolean snailActive = false;
     public boolean snailPaused = false;
@@ -158,7 +167,7 @@ public final class ImmortalSnail_Maven extends JavaPlugin {
         for (Player player : Bukkit.getOnlinePlayers()) {
             // Calculate spawn location behind the player
             Location spawnLocation = player.getLocation().clone()
-                    .add(player.getLocation().getDirection().normalize().multiply(-15));
+                    .add(player.getLocation().getDirection().normalize().multiply(-30));
             spawnLocation.setY(spawnLocation.getWorld().getHighestBlockYAt(spawnLocation) + 1);
 
             // Spawn a pig as the host entity

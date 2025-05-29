@@ -22,6 +22,7 @@ public class SnailNMS {
      * @return True if pathfinding was added successfully
      */
     public static boolean addPathfindingToEntity(Entity hostEntity, Player target) {
+
         try {
             if (!(hostEntity instanceof org.bukkit.entity.Pig bukkitPig)) {
                 System.out.println("DEBUG: Host entity is not a pig");
@@ -45,7 +46,7 @@ public class SnailNMS {
             // Set movement speed at the NMS level
             try {
                 nmsPig.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)
-                        .setBaseValue(0.5D);
+                        .setBaseValue(0.3D);
             } catch (Exception e) {
                 System.out.println("DEBUG: Could not set movement speed: " + e.getMessage());
             }
@@ -54,16 +55,15 @@ public class SnailNMS {
             nmsPig.goalSelector.addGoal(1, new SimpleSnailFollowGoal(
                     nmsPig,
                     ((CraftPlayer) target).getHandle(),
-                    0.5D,   // Movement speed
-                    2.0F,   // Stop distance (blocks)
-                    25.0F   // Start following distance (blocks)
+                    0.3D,   // Movement speed
+                    0.1F,   // Stop distance (blocks)
+                    50.0F   // Start following distance (blocks)
             ));
 
             System.out.println("DEBUG: Added pathfinding goal for " + target.getName());
             return true;
         } catch (Exception e) {
             System.out.println("DEBUG: Exception in addPathfindingToEntity: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }
@@ -149,17 +149,18 @@ public class SnailNMS {
 
             // Recalculate path every 10 ticks (0.5 seconds)
             if (--this.timeToRecalcPath <= 0) {
-                this.timeToRecalcPath = 10;
+                this.timeToRecalcPath = 6;
 
                 System.out.println("DEBUG: Distance: " + String.format("%.2f", distance) +
                         ", Navigation active: " + this.navigation.isInProgress());
 
                 // Teleport if too far away
-                if (distance > 40) {
+                if (distance > 50) {
                     System.out.println("DEBUG: Teleporting snail closer to player");
-                    double angle = Math.random() * 2 * Math.PI;
-                    double offsetX = Math.cos(angle) * 8;
-                    double offsetZ = Math.sin(angle) * 8;
+                    float yaw = this.owner.getBukkitYaw();
+                    double radians = Math.toRadians(yaw);
+                    double offsetX = -Math.sin(radians) * 15;
+                    double offsetZ = Math.cos(radians) * 15;
 
                     this.snail.teleportTo(
                             this.owner.getX() + offsetX,
