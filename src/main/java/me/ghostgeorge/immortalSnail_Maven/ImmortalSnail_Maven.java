@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Pig;
 import org.bukkit.entity.Player;
@@ -164,9 +165,11 @@ public final class ImmortalSnail_Maven extends JavaPlugin {
             Pig host = player.getWorld().spawn(spawnLocation, Pig.class);
             host.setInvisible(true);
             host.setSilent(true);
-            host.setAI(false); // Disable default AI since we're controlling it
+            host.setAI(true); //Enable pathfinding ai
             host.setRemoveWhenFarAway(false); // Prevent despawning
             host.setGravity(true); // Keep gravity enabled
+
+            host.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.0);
 
             getLogger().info("DEBUG: Spawned pig for " + player.getName() + " at " + spawnLocation);
 
